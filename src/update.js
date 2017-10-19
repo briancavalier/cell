@@ -17,8 +17,8 @@ export class Updated<A> {
     return merge(this.value, a)
   }
 
-  propagate (ls: Listener<A>[]): void {
-    ls.forEach(l => l(this))
+  propagate (l: Listener<A>): void {
+    l(this.value)
   }
 }
 
@@ -34,7 +34,7 @@ export class Conflict<A> {
     return this
   }
 
-  propagate (ls: Listener<A>[]): void {}
+  propagate (ls: Listener<A>): void {}
 }
 
 export const conflict = <A> (): Update<A> => new Conflict()

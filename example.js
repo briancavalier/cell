@@ -1,5 +1,5 @@
 // @flow
-import { connect, emptyCell, write } from '.'
+import { connect, emptyCell, write } from './src'
 
 // Create cells to hold temperature values in various units
 const celsius = emptyCell()

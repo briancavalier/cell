@@ -1,7 +1,7 @@
 // @flow
 import { Conflict, type Update, Updated, unchanged, updated } from './update'
 
-export type Listener<A> = (Updated<A>) => void
+export type Listener<A> = A => void
 export type Unlisten = () => void
 
 export type Merge<A> = (A, A) => Update<A>
@@ -43,7 +43,7 @@ export const write = <A> (a: A, cell: Cell<A>): void => {
 
   cell.update = merged
   if (merged.updated === true) {
-    merged.propagate(listeners)
+    listeners.forEach(l => merged.propagate(l))
   }
 }
 
@@ -51,14 +51,14 @@ export const write = <A> (a: A, cell: Cell<A>): void => {
 // the threshold represented by the threshold predicate
 export const read = <A> (threshold: Threshold<A>, cell: Cell<A>): Promise<A> => {
   return new Promise((resolve, reject) => {
-    if (cell.update != null) {
-      console.log(cell)
-      if (!(cell.update instanceof Conflict) && threshold(cell.update.value)) {
-        resolve(cell.update.value)
-        return
-      }
+    if (cell.update instanceof Conflict) {
+      cell.update.propagate(reject)
+      return
+    } else if (cell.update != null && threshold(cell.update.value)) {
+      cell.update.propagate(resolve)
+      return
     }
-    const unlisten = listen(({ value }) => {
+    const unlisten = listen(value => {
       if (threshold(value)) {
         unlisten()
         resolve(value)
@@ -69,13 +69,15 @@ export const read = <A> (threshold: Threshold<A>, cell: Cell<A>): Promise<A> => 
 
 // Listen for updated values in the cell
 export const listen = <A> (l: Listener<A>, cell: Cell<A>): Unlisten => {
-  cell.listeners = cell.listeners.concat(l)
+  cell.listeners.push(l)
+  if (cell.update != null) {
+    cell.update.propagate(l)
+  }
   return () => { cell.listeners = cell.listeners.filter(x => x !== l) }
 }
-
 
 // Connect two cells, making cb's value dependent on ca's value.  When ca
 // is updated, it's value will be transformed by f and then written
 // to cb (obeying cb's merge strategy)
 export const connect = <A, B> (f: A => B, ca: Cell<A>, cb: Cell<B>): Unlisten =>
-  listen(a => write(f(a.value), cb), ca)
+  listen(a => write(f(a), cb), ca)
