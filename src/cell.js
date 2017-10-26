@@ -1,5 +1,5 @@
 // @flow
-import { Conflict, type Update, Updated, unchanged, updated } from './update'
+import { type Update, isConflict, none, unchanged, updated } from './update'
 
 export type Listener<A> = A => void
 export type Unlisten = () => void
@@ -11,17 +11,17 @@ export type Threshold<A> = A => boolean
 // with additional information
 export class Cell<A> {
   merge: Merge<A>
-  update: ?Update<A>
+  update: Update<A>
   listeners: Listener<A>[]
 
-  constructor (merge: Merge<A>, update: ?Update<A>) {
+  constructor (merge: Merge<A>, update: Update<A>) {
     this.merge = merge
     this.update = update
     this.listeners = []
   }
 
   inspect (): string {
-    return `Cell { ${this.update == null ? '<empty>' : this.update instanceof Conflict ? '<conflict>' : String(this.update.value)} }`
+    return `Cell { ${String(this.update)} }`
   }
 }
 
@@ -29,7 +29,7 @@ export class Cell<A> {
 export const defaultMerge = <A> (o: A, n: A): Update<A> => o === n ? unchanged(o) : updated(n)
 
 // Create an empty cell with the provided merge strategy
-export const emptyCell = <A> (merge: Merge<A> = defaultMerge): Cell<A> => new Cell(merge, undefined)
+export const emptyCell = <A> (merge: Merge<A> = defaultMerge): Cell<A> => new Cell(merge, none())
 
 // Create a cell containing an initial value, and which uses the provided merge strategy
 export const cell = <A> (a: A, merge: Merge<A> = defaultMerge): Cell<A> => new Cell(merge, unchanged(a))
@@ -47,32 +47,27 @@ export const write = <A> (a: A, cell: Cell<A>): void => {
   }
 }
 
-// Attempt to read the cell's value, waiting until the value has reached
-// the threshold represented by the threshold predicate
-export const read = <A> (threshold: Threshold<A>, cell: Cell<A>): Promise<A> => {
-  return new Promise((resolve, reject) => {
-    if (cell.update instanceof Conflict) {
-      cell.update.propagate(reject)
-      return
-    } else if (cell.update != null && threshold(cell.update.value)) {
-      cell.update.propagate(resolve)
-      return
-    }
+// Attempt to read the cell's value, waiting until the value reaches
+// the state represented by the threshold predicate
+export const read = <A> (threshold: Threshold<A>, cell: Cell<A>, reject: A => void, fulfill: A => void): void => {
+  if (isConflict(cell.update)) {
+    cell.update.propagate(reject)
+  } else if (cell.update.satisfies(threshold)) {
+    cell.update.propagate(fulfill)
+  } else {
     const unlisten = listen(value => {
       if (threshold(value)) {
         unlisten()
-        resolve(value)
+        fulfill(value)
       }
     }, cell)
-  })
+  }
 }
 
 // Listen for updated values in the cell
 export const listen = <A> (l: Listener<A>, cell: Cell<A>): Unlisten => {
   cell.listeners.push(l)
-  if (cell.update != null) {
-    cell.update.propagate(l)
-  }
+  cell.update.propagate(l)
   return () => { cell.listeners = cell.listeners.filter(x => x !== l) }
 }
 
