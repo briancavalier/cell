@@ -3,11 +3,33 @@
   <head>
     <meta charset="utf-8">
     <title>Convert Temperature</title>
+    <style media="screen">
+      body {
+        font-size: 2em;
+        font-family: sans-serif;
+      }
+      label {
+        color: #666;
+        display: block;
+        margin: 1em;
+      }
+      input {
+        outline: none;
+        max-width: 5em;
+        font-size: 1em;
+        text-align: right;
+        border: none;
+        border-bottom: 1px dotted #ccc;
+      }
+      input:focus {
+        border-bottom: 1px solid #999;
+      }
+    </style>
   </head>
   <body>
-    <input type="text" name="celsius" value="">
-    <input type="text" name="fahrenheit" value="">
-    <input type="text" name="kelvin" value="">
+    <label><input type="text" name="celsius" value="">&deg;C</label>
+    <label><input type="text" name="fahrenheit" value="">&deg;F</label>
+    <label><input type="text" name="kelvin" value="">&deg;K</label>
   </body>
   <script src="dist/index.js" charset="utf-8"></script>
 </html>

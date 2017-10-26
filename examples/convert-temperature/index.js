@@ -11,6 +11,9 @@ const qs = (selector) => document.querySelector(selector) || fail(`${selector} n
 const connectInput = (cell: Cell<number>, input: HTMLInputElement): void => {
   input.addEventListener('input', e => {
     const value = Number(e.target.value)
+    if (isNaN(value)) {
+      return
+    }
     write(value, cell)
   })
   listen(x => { input.value = String(x) }, cell)
