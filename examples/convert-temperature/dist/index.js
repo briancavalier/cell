@@ -142,6 +142,26 @@ var createClass = function () {
   };
 }();
 
+var bottom = function bottom() {
+  return new Bottom();
+};
+
+// An Update represents a value that may (or may not) have been updated
+// with more information
+
+var conflict = function conflict() {
+  return new Conflict();
+};
+var unchanged = function unchanged(value) {
+  return new Updated(false, value);
+};
+var updated = function updated(value) {
+  return new Updated(true, value);
+};
+
+
+
+
 var Updated = function () {
   function Updated(updated, value) {
     classCallCheck(this, Updated);
@@ -189,7 +209,7 @@ var Conflict = function () {
     }
   }, {
     key: 'propagate',
-    value: function propagate(ls) {}
+    value: function propagate(l) {}
   }, {
     key: 'satisfies',
     value: function satisfies(p) {
@@ -204,22 +224,22 @@ var Conflict = function () {
   return Conflict;
 }();
 
-var None = function () {
-  function None() {
-    classCallCheck(this, None);
+var Bottom = function () {
+  function Bottom() {
+    classCallCheck(this, Bottom);
 
     this.updated = false;
     this.value = undefined;
   }
 
-  createClass(None, [{
+  createClass(Bottom, [{
     key: 'merge',
     value: function merge(_merge3, a) {
       return updated(a);
     }
   }, {
     key: 'propagate',
-    value: function propagate(ls) {}
+    value: function propagate(l) {}
   }, {
     key: 'satisfies',
     value: function satisfies(p) {
@@ -231,19 +251,41 @@ var None = function () {
       return '<none>';
     }
   }]);
-  return None;
+  return Bottom;
 }();
 
-var none = function none() {
-  return new None();
-};
+var Top = function () {
+  function Top(value) {
+    classCallCheck(this, Top);
 
-var unchanged = function unchanged(value) {
-  return new Updated(false, value);
-};
-var updated = function updated(value) {
-  return new Updated(true, value);
-};
+    this.updated = true;
+    this.value = value;
+  }
+
+  createClass(Top, [{
+    key: 'merge',
+    value: function merge(_merge4, a) {
+      var merged = _merge4(this.value, a);
+      return merged.updated ? conflict() : merged;
+    }
+  }, {
+    key: 'propagate',
+    value: function propagate(l) {
+      l(this.value);
+    }
+  }, {
+    key: 'satisfies',
+    value: function satisfies(p) {
+      return p(this.value);
+    }
+  }, {
+    key: 'toString',
+    value: function toString() {
+      return 'updated: ' + String(this.updated) + ', value: ' + String(this.value);
+    }
+  }]);
+  return Top;
+}();
 
 // A cell holds a value and a merge strategy for updating the value
 // with additional information
@@ -273,7 +315,7 @@ var defaultMerge = function defaultMerge(o, n) {
 // Create an empty cell with the provided merge strategy
 var emptyCell = function emptyCell() {
   var merge = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : defaultMerge;
-  return new Cell(merge, none());
+  return new Cell(merge, bottom());
 };
 
 // Create a cell containing an initial value, and which uses the provided merge strategy
@@ -289,14 +331,18 @@ var write = function write(a, cell) {
       update = cell.update,
       listeners = cell.listeners;
 
-  var merged = update == null ? updated(a) : update.merge(merge, a);
+  var merged = update.merge(merge, a);
 
   cell.update = merged;
   if (merged.updated === true) {
-    listeners.forEach(function (l) {
-      return merged.propagate(l);
-    });
+    propagateToAll(merged, listeners);
   }
+};
+
+var propagateToAll = function propagateToAll(update, ls) {
+  return ls.forEach(function (l) {
+    return update.propagate(l);
+  });
 };
 
 // Attempt to read the cell's value, waiting until the value reaches
@@ -388,8 +434,6 @@ var f2k = function f2k(f) {
 // only propagates updates when they are "meaningful", that is,
 // they added new information (as defined by the merge
 // strategy) to the cell's value.
-// These cells are using the default merge strategy which just
-// uses `===` to determine if an update is meaningful or not.
 connect(c2f, celsius, fahrenheit);
 connect(c2k, celsius, kelvin);
 connect(f2c, fahrenheit, celsius);

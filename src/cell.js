@@ -1,5 +1,5 @@
 // @flow
-import { type Update, isConflict, none, unchanged, updated } from './update'
+import { type Update, isConflict, bottom, unchanged, updated } from './update'
 
 export type Listener<A> = A => void
 export type Unlisten = () => void
@@ -29,7 +29,7 @@ export class Cell<A> {
 export const defaultMerge = <A> (o: A, n: A): Update<A> => o === n ? unchanged(o) : updated(n)
 
 // Create an empty cell with the provided merge strategy
-export const emptyCell = <A> (merge: Merge<A> = defaultMerge): Cell<A> => new Cell(merge, none())
+export const emptyCell = <A> (merge: Merge<A> = defaultMerge): Cell<A> => new Cell(merge, bottom())
 
 // Create a cell containing an initial value, and which uses the provided merge strategy
 export const cell = <A> (a: A, merge: Merge<A> = defaultMerge): Cell<A> => new Cell(merge, unchanged(a))
@@ -38,14 +38,16 @@ export const cell = <A> (a: A, merge: Merge<A> = defaultMerge): Cell<A> => new C
 // and propagating any updates to readers
 export const write = <A> (a: A, cell: Cell<A>): void => {
   const { merge, update, listeners } = cell
-  const merged = update == null
-    ? updated(a) : update.merge(merge, a)
+  const merged = update.merge(merge, a)
 
   cell.update = merged
   if (merged.updated === true) {
-    listeners.forEach(l => merged.propagate(l))
+    propagateToAll(merged, listeners)
   }
 }
+
+const propagateToAll = <A> (update: Update<A>, ls: Listener<A>[]): void =>
+  ls.forEach(l => update.propagate(l))
 
 // Attempt to read the cell's value, waiting until the value reaches
 // the state represented by the threshold predicate
