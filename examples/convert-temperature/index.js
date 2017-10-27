@@ -47,8 +47,6 @@ const f2k = f => c2k(f2c(f))
 // only propagates updates when they are "meaningful", that is,
 // they added new information (as defined by the merge
 // strategy) to the cell's value.
-// These cells are using the default merge strategy which just
-// uses `===` to determine if an update is meaningful or not.
 connect(c2f, celsius, fahrenheit)
 connect(c2k, celsius, kelvin)
 connect(f2c, fahrenheit, celsius)
